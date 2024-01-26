@@ -1,0 +1,14 @@
+version: "3"
+services:
+  nginx-hugo:
+    image: homelab/alexdarbyshire-site:latest
+    container_name: nginx-hugo
+    restart: always
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared_alexdarbyshire
+    restart: always
+    environment:
+      - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate run --token "$CLOUDFLARE_TUNNEL_TOKEN"    
