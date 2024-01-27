@@ -303,3 +303,6 @@ Cloudflare handles SSL certificates for us, however make sure that [SSL strict i
 
 ## Done
 We give ourselves a pat on the back, relish the satisfaction of self-hosting, and then start thinking about all the ways we could improve and automate this process. To be continued in a series of follow-up posts...
+
+## Example
+[Checkout how this setup looks like in Github](https://github.com/alexdarbyshire/alexdarbyshire.com/tree/6323765125de29bf581cf7eafdf16b8cb545890b) (with additions to `config.toml`, `content/`, and `static/` being the first three posts on this site and a more theme setup) 
