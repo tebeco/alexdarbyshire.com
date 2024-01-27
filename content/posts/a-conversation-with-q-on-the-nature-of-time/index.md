@@ -2,11 +2,11 @@
 title: "A Conversation with Q on the Nature of Time"
 date: 2024-01-27T12:17:09+10:00
 author: "Alex Darbyshire"
-#type: post
 banner: "img/banners/q-who.jpg"
 tags: 
   - LLMs
   - Star Trek
+  - Musing
 ---
 
 Recently I have been playing with open-source LLMs (Large Language Models), LLMs being the technology behind ChatGPT. 

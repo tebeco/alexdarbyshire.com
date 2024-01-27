@@ -6,6 +6,7 @@ author: "Alex Darbyshire"
 banner: "img/banners/highlander-steampunk-mangastyle.jpeg"
 tags: 
   - Hugo
+  - Musing
 ---
 # Welcome to my little corner of the Internet 
 Several years ago, I acquired this eponymous domain. For quite some time, it was a single page with a video clip from the 80s classic Highlander. 
