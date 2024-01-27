@@ -10,5 +10,5 @@ services:
     container_name: cloudflared_alexdarbyshire
     restart: always
     environment:
-      - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+            - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN} #Docker secrets would be preferable, cloudflared image isn't setup to read token from a file. Can be done using a custom Dockerfile. See https://gist.github.com/j0sh/b1971bfbbffeb92709cf096fb788f70c
     command: tunnel --no-autoupdate run --token "$CLOUDFLARE_TUNNEL_TOKEN"    
