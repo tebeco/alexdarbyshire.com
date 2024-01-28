@@ -29,7 +29,7 @@ Note, Docker Swarm is included the above for historical reasons, its usage is wa
 The major cloud service providers offer their own abstracted versions of Kubernetes. I am learning CLI based Kubernetes as I find it is usually helpful to understand what is going on beneath the hood with complex systems.
 
 ## Example
-> TODO: Insert Example Link once
+[Checkout the end result in GitHub](https://github.com/alexdarbyshire/alexdarbyshire.com/tree/b64dd9477306d4e4379bc8bc7e5c7652638dc306)
  
 ## Tech stack
 - **K3s**
