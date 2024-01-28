@@ -16,13 +16,13 @@ K3s provides an approachable way to experience Kubernetes. It is quick to spin u
 We will continue using this site as an example and build upon the [previous post]({{< ref "/posts/self-hosted-website-with-hugo-docker-and-cloudflare-tunnels/index.md" >}} "Self-Hosted Website with Hugo, Docker, and Cloudflare Tunnels") which got our [GitHub repo to here.](https://github.com/alexdarbyshire/alexdarbyshire.com/tree/b468af84c2b2473776549cbba7d3238541556ce2)
 
 ## What is Kubernetes and where does it fit with Docker?
-- **Kubernetes, OpenShift, Docker Swarm** Container orchestration tools that automate the deployment, scaling, and management of containerised applications across multiple nodes (computers).
-- **Docker Compose** A tool for managing multi-container applications on a single node or within a swarm.
-- **Docker** A tool for building and running containers using container images stored in registries.
+- **Kubernetes, OpenShift, Docker Swarm** Container orchestration tools that automate the deployment, scaling, and management of containerised applications across multiple nodes (machines).
+- **Docker Compose** A tool for managing multi-container applications on a single node or within a Docker Swarm.
+- **Docker** A tool for building images, interacting with image registries, and running containers.
 
-Kubernetes allows containers to be scaled for huge audiences and to be scaled back down when the need reduces. Think Netflix at 8pm, Amazon on Black Friday, and Google serving varying numbers of users at a given time of day.
+Kubernetes allows containers to be scaled for huge audiences and to be scaled back down when the need reduces. Think Netflix at 8pm, Amazon on Black Friday, or Google when we are all searching as one.
 
-Google should get a special mention having developed Kubernetes and open-sourced it in the first place. 
+Google gets a special mention having developed Kubernetes and open-sourced it in the first place. 
 
 Note, Docker Swarm is included the above for historical reasons, its usage is waning. 
 
@@ -40,7 +40,7 @@ The major cloud service providers offer their own abstracted versions of Kuberne
 
 ## Bring Your Own
 - **Host running Ubuntu Linux**
-  - e.g. VirtualBox VM, Bare metal host, Virtual Private Server (VPS)  
+  - e.g. VirtualBox VM, Bare metal host, Virtual Private Server (VPS), WSL2  
 - **Docker** -- installed on host
     - [Install Docker](https://docs.docker.com/engine/install/ubuntu/)
     - [Install Docker with convenience script](https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script)
@@ -74,11 +74,16 @@ sudo snap install kompose
 kompose convert
 ```
 ![image](4-kompose-convert.png)
-Hmm... That was easy, almost too easy. Let's be gung-ho, not check what the output looks like and see if the new resource definitions work.
+Hmm... That was easy, almost too easy. Let's be gung-ho, not check what the output looks like and see if the new manifests work.
 
+Links to the outputted files for reference:
+- [cloudflared-deployment.yaml](cloudflared-deployment.yaml)
+- [nginx-hugo.yaml](nginx-hugo-deployment.yaml)
+
+#### Try out and debug Kompose generated manifests
 Ask kubectl to apply the configuration files in the current folder.
 ```
-sudo k3s kubectl apply .
+sudo k3s kubectl apply -f .
 ```
 ![image](5-apply-kompose-manifests.png)
 
@@ -99,8 +104,8 @@ sudo k3s kubectl logs deployment.app/cloudflared
 ![image](7-check-logs.png)
 
 In the above output we discover:
-1. The hugo-nginx image is not available to K3s. In the last post we built it in Docker's internal local image repository which K3s doesn't talk to.
-2. Cloudflared is missing its token
+1. The hugo-nginx image is not available to K3s. In the last post we built the image and access it via Docker's local image storage which K3s doesn't know how to access.
+2. Cloudflared is missing its token.
 
 ```
 cat cloudflared-deployment.yaml
@@ -120,7 +125,7 @@ mkdir deploy
 cd deploy
 ```
 
-Then, we add a file named `distribution.yaml` with the following contents. 
+Then, we add a file named `distribution.yaml` with the following contents: 
 ```
 apiVersion: v1
 kind: Pod
@@ -176,7 +181,7 @@ spec:
       storage: 4Gi
 ```
 
-This files define two resources for running a private registry, and a local storage volume. Local storage isn't aligned with the Kubernetes approach, however it will suit our test usage. 
+These files define two resources for running a private registry, and a local storage volume. Local storage isn't aligned with the Kubernetes approach, however it will suit our test usage. 
 
 
 Note, this setup does not include authentication so should not be exposed.
@@ -197,11 +202,11 @@ docker push localhost:5000/alexdarbyshire-site:latest
 ```
 
 #### Using secrets to pass our Cloudflare Tunnel token 
-First, encode your token to base64 and make note of it. 
+First, encode the token to base64 and make note of it. 
 ```
-echo "insert_token_here# | base64 -w 0 
+echo "insert_token_here" | base64 -w 0 
 ```
-Base64 is not encryption, it is encoding type and is not secure, we should treat our base64 token in the same way we treat our plaintext token.
+Base64 is not encryption, it is an encoding type and is not secure, we should treat our base64 token in the same way we treat our plaintext token.
 
 Create a file called `secrets.yaml.example` with the following contents:
 ```
@@ -213,18 +218,18 @@ data:
   token: insert_token_encoded_as_base64_here 
 ```
 
-Make a copy and add the new file to `.gitignore` to exclude it from the git repo
+Make a copy and add the new file to `.gitignore` to exclude it from the git repo.
 ```
 cp secrets.yaml.example secrets.yaml
 echo "secrets.yaml" >> .gitignore
 ```
 
-Edit secrets.yaml and add the base64 encoded token into it
+Edit secrets.yaml and add the base64 encoded token into it.
 
 #### Add the Kubernetes manifest for cloudflared-hugo
 The output of the Kompose command needed a fair bit of work. It gives us an idea of its limitations. 
 
-We will not use the files it created, below is a cleaned up version with the missing requirements added (service, port mappings, and updated image path).
+We will not use the files it created, below is a cleaned up combined version with the missing requirements added (service, port mappings, and updated image path).
 
 Create a file called `cloudflared-hugo.yaml` with the following contents:
 ```
@@ -305,7 +310,7 @@ The deploy folder should now look like this:
 ![image](10-ls-deploy-folder.png)
 
 #### Apply all the manifests
-Run the following from the `deploy` directory
+Run the following from the `deploy` directory.
 ```
 sudo k3s kubectl apply -f .
 ```
@@ -326,11 +331,24 @@ We have some files we no longer need.
 
 ```
 cd ~/alexdarbyshire.com
-docker compose down -d
 rm .env .env.example 
 rm docker-compose.yml
 rm nginx-hugo-deployment.yaml cloudflared-deployment.yaml
 ```
 
+#### Make a commit
+You may want to commit your code to the local repo once again.
+
+Check no files including secrets will be committed by checking what will be committed.
+```
+git status
+```
+
+Then add and commit.
+```
+git add .
+git commit -m "Migrate from Docker Compose to K3s"
+```
+
 ## Done
-Now we can start dreaming about the next improvement.
+Now we can start dreaming about the thing we will improve.
