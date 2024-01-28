@@ -21,7 +21,9 @@ Note that there are cheaper and simpler ways to host a top-level domain website,
 
 
 ## Example
-[Checkout how this setup looks like in GitHub](https://github.com/alexdarbyshire/alexdarbyshire.com/tree/6323765125de29bf581cf7eafdf16b8cb545890b) (with additions to `config.toml`, `content/`, and `static/` being the first three posts on this site and a more theme setup)
+[Checkout how this setup looks like in GitHub](https://github.com/alexdarbyshire/alexdarbyshire.com/tree/6323765125de29bf581cf7eafdf16b8cb545890b) 
+
+Note, the example has additions to `config.toml`, `content/`, and `static/` not included in this post. Additional content being the first three posts on this site and more theme setup.
 
 ## Tech stack
 Here’s a brief overview of the tools we’ll be using:
