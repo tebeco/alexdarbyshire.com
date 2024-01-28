@@ -12,22 +12,27 @@ tags:
 ---
 
 
-This post will step through the process of building a Hugo-based website image using Docker in Ubuntu Linux, setting up a Cloudflare tunnel, and using a Docker Compose stack to bring up the website and cloudflared containers. This will make a website available on the internet using an existing top-level domain. Some basic knowledge of Linux is required.
+This post will step through the process of building a Hugo-based website image using Docker in Ubuntu Linux, setting up a Cloudflare tunnel, and using a Docker Compose stack to bring up the website and Cloudflared containers. This will make a website available on the internet using an existing top-level domain. Some basic knowledge of Linux is required.
 
 At the time of writing, this is how this site is being hosted. However, there are a few more manual steps in the process for creating subsequent builds than we would like. In the spirit of [kaizen](https://en.wikipedia.org/wiki/Kaizen), we will make it better in a future post.
 
 
 Note that there are cheaper and simpler ways to host a top-level domain website, particularly if you don’t already have a computer running around the clock. This method suits a person who is keen to get experience using these technologies.
 
+
+## Example
+[Checkout how this setup looks like in GitHub](https://github.com/alexdarbyshire/alexdarbyshire.com/tree/6323765125de29bf581cf7eafdf16b8cb545890b) (with additions to `config.toml`, `content/`, and `static/` being the first three posts on this site and a more theme setup)
+
+## Tech stack
 Here’s a brief overview of the tools we’ll be using:
 
 - **Ubuntu Linux** - variant of the famous open-source operating system, *thanks Linus Torvalds et al.*
 - **Hugo** - framework for building fast static websites using markdown.
 - **Docker** - software for building, deploying and running containers.
 - **Docker Compose** - software for defining and running multi-container applications.
-- **Cloudflare Tunnel** - provides a means to make resources on a network available without opening any ports or having a publicly routable IP. This is handy for those behind CGNAT like a lot of 5G internet and a bunch of other use cases.
+- **Cloudflare Tunnel** - provides a means to make resources on a network available without opening any ports or having a publicly routable IP. This is handy for those behind [CGNAT](https://en.wikipedia.org/wiki/Carrier-grade_NAT) like a lot of 5G internet and a bunch of other use cases.
 
-## Prerequisites
+## Bring Your Own
 Before we begin, we will need the following:
 
 -   **Domain name** - can be purchased from the likes of Namecheap or Cloudflare
@@ -37,16 +42,16 @@ Before we begin, we will need the following:
 	- To play, you could use the [Windows Subsystem for Linux WSL2](https://ubuntu.com/wsl) running Ubuntu, or
 	- An Ubuntu Virtual Machine (VM) running in [VirtualBox](https://www.virtualbox.org/)
 	- To run perpetually for a low traffic site, a thin-client type PC running Ubuntu would do. This site is currently on an Ubuntu VM running in a Proxmox cluster which lives in my home office
+    - A Virtual Private Server (VPS)
 - **Docker** - installed on host, recent versions come with Docker Compose which is also required
   - [Install Docker](https://docs.docker.com/engine/install/ubuntu/)
-  - [Install Docker with convienence script](https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script)
+  - [Install Docker with convenience script](https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script)
 
-
--   **User to be part of docker group** (in Ubuntu) - alternatively run all docker commands prefixed with `sudo `
+-   **User to be part of `docker` user group** (in Ubuntu) - alternatively run all docker commands prefixed with `sudo `
 
 ## Versions
 
-For reference, these are the versions in use. If something doesn't work and you are using more recent versions, you might be able to get an idea of the cause by looking at the change notes.
+For reference, these are the versions in use. If something doesn't work, and you are using more recent versions, you might be able to get an idea of the cause by looking at the change notes.
 
 - Ubuntu server 22.04
 
@@ -64,7 +69,13 @@ For reference, these are the versions in use. If something doesn't work and you 
 
 "Wait, what? I thought you said we were using docker"
 
-Well, yes, we are. I find there is less friction testing and developing the website using Hugo directly in a VM, rather than having to bring up a shell in the Hugo docker container every time we want to run a Hugo command. If you are keen you can do it all in the container. The following command examples are run in Ubuntu VM's bash shell.
+Well, yes, we are. 
+
+I find there is less friction testing and developing the website using Hugo directly in a VM, rather than having to bring up a shell in the Hugo docker container every time we want to run a Hugo command. 
+
+If you are keen you can do it all in the container. 
+
+The following command examples are run in Ubuntu VM's bash shell.
 
 
 #### Update the package repository and install hugo and git
@@ -96,9 +107,15 @@ Here we use the [Hugo Universal Theme](https://github.com/devcows/hugo-universal
 ```
 cd themes
 git clone https://github.com/devcows/hugo-universal-theme
+cd ..
 ```
 ![image](3-install-theme.png)
 
+Optional - remove git from the theme allowing us to customise it without forking. There are other options here (submodules etc)
+
+```
+rm -rf themes/hugo-universal-theme/.git
+```
 
 #### Set the theme
 Now we want to set the theme in the config.toml, we'll do this by appending to the end of this file rather than firing up a text editor
@@ -114,21 +131,22 @@ Let's run the hugo server to see how we went.
 ```
 hugo server --bind 0.0.0.0
 ```
-The `-bind 0.0.0.0` means any IP (that can reach the host) will be able to access the content.
+The `--bind 0.0.0.0` means any IP (that can reach the host) will be able to access the content.
 
 ![image](5-test-the-site.png)
 
 To check the content we'll either need another shell open on the same machine, or to know the IP of the VM and have network access to it from another computer which has a web browser.
 
 - Using another shell on same machine
-Using a browser on a machine that has network access to the VM. Note, the IP shown starting with 192.168 is a range reserved for private networks - the IP will be different in your setup.
 ![image](6-test-the-site-curl.png)
-
+- Using a browser on a machine that has network access to the VM. Note, the IP shown starting with 192.168 is a range reserved for private networks - the IP will be different in your setup.
 ![image](7-test-the-site-success.png)
 
 Success!
 
-We will not get further into 'how to use Hugo', this working site is enough for proof-of-concept of the rest of the workflow.
+We will not get further into 'how to use Hugo', this working site is enough for proof-of-concept of the rest of the workflow. 
+
+For more info on Hugo, [see their docs here](https://gohugo.io/documentation/), also see the [GitHub example](#Example) for this site at the time of the post.
 
 
 ### Turn the site into a Docker image
@@ -145,18 +163,15 @@ The contents of the Dockerfile:
 
 FROM hugomods/hugo:exts as builder
 # Base URL
-ARG HUGO_BASEURL=
+ARG HUGO_BASEURL
 ENV HUGO_BASEURL=${HUGO_BASEURL}
 # Hugo Environment
 ARG HUGO_ENV
-ENV HUGO_ENV $HUGO_ENV
+ENV HUGO_ENV=${HUGO_ENV}
 
 # Build site
 COPY . /src
-RUN hugo -e --gc --enableGitInfo --minify
-
-# Set the fallback 404 page if defaultContentLanguageInSubdir is enabled, please replace the `en` with your default language code.
-# RUN cp ./public/en/404.html ./public/404.html
+RUN hugo --gc --enableGitInfo --minify
 
 ###############
 # Final Stage #
@@ -175,18 +190,22 @@ docker build --build-arg HUGO_BASEURL="https://www.alexdarbyshire.com" --build-a
 ![image](9-build-the-image2.png)
 #### Test the image
 ```
-docker run -p 8081:80 -n test-hugo homelab/alexdarbyshire-site:latest
+docker run -p 8081:80 --name test-hugo homelab/alexdarbyshire-site:latest
 curl localhost:8081
+```
+![image](10-test-the-image.png)
+
+#### Stop and remove the image
+```
 docker stop test-hugo
 docker rm test-hugo
 ```
-![image](10-test-the-image.png)
 ![image](11-remove-the-test-container.png)
 
 ### Setup a Cloudflare tunnel
 
 #### Login to Cloudflare dashboard
-Click the domain. If it is missing see [Prerequisites](#Prerequisites)
+Click the domain. If it is missing see [Bring Your Own](#Bring-Your-Own)
 ![image](12-cloudflare-select-domain.png)
 
 #### Click into `DNS` section
@@ -201,7 +220,7 @@ Within the domain's DNS check there aren't any CNAME records for yourdomain.com 
 #### Click `Zero Trust`
 ![image](15-cloudflare-click-zero-trust.png)
 
-### Click `Tunnels` under Access
+#### Click `Tunnels` under Access
 ![image](16-cloudflare-click-tunnels.png)
 
 #### Create a tunnel
@@ -213,7 +232,7 @@ Under connectors, click docker and make note of the docker run command, we will 
 ![image](18-cloudflare-note-tunnel-token.png)
 
 
-Click next and add a host for our domain, we will need to repeat this for our www subdomain (or use a ANAME record if you are keen)
+Click next and add a host for our domain, we will need to repeat this for our www subdomain (or use an A record if you are keen)
 ![image](19-cloudflare-add-a-public-hostname.png)
 
 ![image](20-cloudflare-add-a-public-hostname-details.png)
@@ -221,7 +240,7 @@ Click next and add a host for our domain, we will need to repeat this for our ww
 
 ### Use Docker Compose to bring it all together
 #### Create a `docker-compose.yml` file 
-In in the web directory folder. The service name of 'nginx-hugo' is important, it needs to be the same as the host we added in when creating the Cloudflare tunnel connector. Within the docker compose stack a network is created and the service name functions as a hostname, in other words the Cloudflared container uses the service name we entered in the URL `http://nginx-hugo:80/` to talk to the Nginx container which serves the website.
+In the web directory folder. The service name of 'nginx-hugo' is important, it needs to be the same as the host we added in when creating the Cloudflare tunnel connector. Within the docker compose stack a network is created and the service name functions as a hostname, in other words the Cloudflared container uses the service name we used in the URL `http://nginx-hugo:80/` to talk to the Nginx container which serves the website.
 
 If you are unfamiliar with YAML files, the indentation requirements are strict. Incorrect indentation will result in errors.
 
@@ -242,7 +261,7 @@ services:
         - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN} 
     command: tunnel --no-autoupdate run --token "$CLOUDFLARE_TUNNEL_TOKEN"
 ```
-Using Docker secrets would be preferable to passing the token as an environment variable. However the cloudflared image isn't setup to read token from a file. It can be done using a custom Dockerfile for those who are keen. See https://gist.github.com/j0sh/b1971bfbbffeb92709cf096fb788f70
+Using Docker secrets would be preferable to passing the token as an environment variable. However, the Cloudflared image isn't setup to read token from a file. It can be done using a custom Dockerfile for those who are keen. See https://gist.github.com/j0sh/b1971bfbbffeb92709cf096fb788f70
 
 #### Create a `.env` file for the Cloudflare token
 Create the file using you preferred text editor. 
@@ -299,10 +318,12 @@ git commit -m "Install and setup theme, create Dockerfile and docker-compose.yml
 ```
 
 ### A note on SSL
+SSL is the s in `https` and handles encrypting traffic between web browsers and our host.
+
 Cloudflare handles SSL certificates for us, however make sure that [SSL strict is enabled in Cloudflare](https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/full-strict/#process) for the domain.  
+
+This ensures that anyone trying to access the `http` address will get redirected to the `https` address.
 
 ## Done
 We give ourselves a pat on the back, relish the satisfaction of self-hosting, and then start thinking about all the ways we could improve and automate this process. To be continued in a series of follow-up posts...
 
-## Example
-[Checkout how this setup looks like in Github](https://github.com/alexdarbyshire/alexdarbyshire.com/tree/6323765125de29bf581cf7eafdf16b8cb545890b) (with additions to `config.toml`, `content/`, and `static/` being the first three posts on this site and a more theme setup) 
