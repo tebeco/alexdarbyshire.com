@@ -351,4 +351,4 @@ git commit -m "Migrate from Docker Compose to K3s"
 ```
 
 ## Done
-Now we can start dreaming about the thing we will improve.
+Now we can start dreaming about the thing we will improve next.

@@ -1,18 +1,11 @@
 # Source code for [alexdarbyshire.com](https://www.alexdarbyshire.com)
 - Developed in Hugo
 - Self-hosted using Cloudflare tunnel and Nginx 
-- Running on K3s 
+- Running on K3s with Vault 
 
 ## Config
-Copy deploy/secrets.yaml.example to deploy/secrets.yaml
 
-`cp deploy/secrets.yaml.example deploy/secrets.yaml`
-
-Convert the Cloudflare tunnel token to Base64 and then insert in secrets.yaml
-
-`echo "insert_token_here" | base64 w -0`
-
-Also see `config.toml` for Hugo configuration
+See `config.toml` for Hugo configuration
 
 ## Deploy
 Build image
@@ -27,8 +20,16 @@ sudo k3s kubectl apply -f deploy/distribution-pvc.yaml deploy/distribution.yaml
 Push image to private repo
 `docker push localhost:5000/alexdarbyshire-site:latest` 
 
+Install Vault and Consul
+- see post 4
+
+Configure Vault
+- see post 4
+
 Bring up rest of the resources in deploy
 `sudo k3s kubectl apply -f deploy/.`
+
+
 
 
 

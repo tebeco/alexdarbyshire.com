@@ -7,6 +7,8 @@ tags:
   - Kubernetes 
   - Linux
   - Vault
+  - Terraform
+  - Helm
 ---
 
 This post will explore deploying Hashicorp Vault to K3s (Kubernetes distribution) using Helm and then configuring it with Terraform. This will enable us to store our secret state data in Vault and make those secrets available to our K3s resources, including self-hosted GitHub runners.
@@ -26,13 +28,13 @@ Using Vault for one secret is like dropping a shipping container of hammers onto
 We will set about:
 - installing Helm
 - installing Vault and Vault's companion storage service Consul,  
-- intalling and configuring Vault using Terraform, and
+- installing and configuring Vault using Terraform, and
 - adding the token to Vault then updating the Cloudflared manifest to source it from there.
 
 This is building upon the [previous post]({{< ref "/posts/migrating-docker-compose-to-kubernetes-k3s/index.md" >}} "Migrating from Docker Compose to Kubernetes (K3s)") which got our [GitHub repo to here.](https://github.com/alexdarbyshire/alexdarbyshire.com/tree/e289cae54d452745e30cf733e06c0b3c569adaec)
 
 ## Example
-Checkout the end result in GitHub `TODO: Add link once committed and pushed`
+[Checkout the end result in GitHub](https://github.com/alexdarbyshire/alexdarbyshire.com/tree/5bb6d8bc540f5494610c00e6fa5ffd4203246dbf) 
 
 ## References
 [Vault docs for installing on Minikube](https://developer.hashicorp.com/vault/tutorials/kubernetes/kubernetes-minikube-consul) - followed this closely up until using Terraform. 
@@ -176,7 +178,7 @@ jq -r '.unseal_keys_b64[1]' cluster-keys.json | xargs -I {}  sudo k3s kubectl ex
 
 Make note of the root_token in the cluster-keys.json, we'll use it shortly.
 
-**Note:** Now that we have unlock the keys for the first time, take the contents of the `cluster-keys.json` and put it somewhere safe like a decent password manager with multi-factor authentication enabled. If it was for something sensitive, use increased and appropriate precautions commensurate to risk.
+**Note:** Now that we have unlock the keys for the first time, take the contents of the `cluster-keys.json` and put it somewhere safe like a decent password manager with multifactor authentication enabled. If it was for something sensitive, use increased and appropriate precautions commensurate to risk.
 
 Then after making a copy of the contents, I suggest getting rid of the file, `rm cluster-keys.json`
 
@@ -198,7 +200,7 @@ sudo apt update && sudo apt install terraform
 
 
 #### Create the Terraform files for configuring Vault
-There are a few files to create, rather than list all contents here, click this link to in the GitHub repo.
+There are a few files to create, rather than list all contents here, [click this link to the GitHub repo](https://github.com/alexdarbyshire/alexdarbyshire.com/tree/5bb6d8bc540f5494610c00e6fa5ffd4203246dbf).
 
 - main.tf - defines the Vault provider to inform Terraform of how to interact with the rest of the files
 - secrets.tf - enables kv-v2 (Key Value) secret engine
