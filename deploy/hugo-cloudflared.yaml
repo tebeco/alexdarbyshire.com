@@ -5,7 +5,7 @@ metadata:
     app: cloudflared
   name: cloudflared-deployment
 spec:
-  replicas: 1
+  replicas: 2 
   selector:
     matchLabels:
       app: cloudflared
@@ -13,23 +13,68 @@ spec:
     metadata:
       labels:
         app: cloudflared
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        vault.hashicorp.com/agent-init-first: 'true'
+        vault.hashicorp.com/role: 'cloudflared-role'
+        vault.hashicorp.com/agent-inject-secret-token: 'secret/cloudflared/tunnel'
+        vault.hashicorp.com/agent-inject-template-token: |
+          {{- with secret "secret/cloudflared/tunnel" -}}
+            export TUNNEL_TOKEN="{{ .Data.data.token }}"
+          {{- end }}
     spec:
-      containers:
-      - args:
-        - tunnel
-        - --no-autoupdate
-        - run
-        - tunnel  
+      serviceAccountName: vault-auth
+      initContainers:    
+      - image: docker.io/alpine/k8s:1.25.6
+        name: create-auth-token 
         env:
-          - name: TUNNEL_TOKEN 
+          - name: test_TOKEN
             valueFrom:
               secretKeyRef:
-                name: cloudflared 
-                key: token
-        image: cloudflare/cloudflared:latest
-        name: cloudflared
-      restartPolicy: Always
+                name: cloudflared
+                key: token    
+        command:
+            - /bin/sh
+            - -c
+            - |
+              source /vault/secrets/token 
+              kubectl delete secret cloudflared --ignore-not-found > /dev/null 2>&1
+              kubectl create secret generic cloudflared --type=stringData --from-literal="token=temp"
+              kubectl patch secret cloudflared --patch='{"data": { "token": "'$TUNNEL_TOKEN'" } }' #This allows us to write token as a string without K8s re-encoding as base64 (it comes as base64 from cloudflare)
 
+      containers:
+      - image: cloudflare/cloudflared:latest
+        name: cloudflared
+        args:
+        - tunnel
+        - --no-autoupdate
+        - --metrics=localhost:3333  
+        - run
+        - tunnel
+        env:
+          - name: TUNNEL_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: cloudflared
+                key: token
+        livenessProbe:
+          httpGet:
+            path: /ready
+            port: 3333
+            scheme: HTTP
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3333
+            scheme: HTTP
+        startupProbe:
+          httpGet:
+            path: /ready
+            port: 3333
+            scheme: HTTP
+          failureThreshold: 60
+          periodSeconds: 10
+      restartPolicy: Always
 ---
 
 apiVersion: apps/v1
