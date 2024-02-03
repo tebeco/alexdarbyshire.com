@@ -9,7 +9,7 @@ ARG HUGO_ENV
 ENV HUGO_ENV $HUGO_ENV
 # Build site
 COPY . /src
-RUN hugo --gc --enableGitInfo --minify
+RUN hugo --gc --minify
 
 ###############
 # Final Stage #
