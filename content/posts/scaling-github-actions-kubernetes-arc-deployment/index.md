@@ -263,7 +263,7 @@ env:
 
 jobs:
   Build-and-Push:
-    runs-on: arc-runner-set3
+    runs-on: arc-runner-set
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -293,7 +293,7 @@ jobs:
           docker buildx imagetools inspect registry:5000/$IMAGE_NAME:$IMAGE_TAG
 
   Patch-Deployment-Image:
-    runs-on: arc-runner-set3
+    runs-on: arc-runner-set
     steps:
       - name: Install Kubectl
         env:
@@ -329,8 +329,13 @@ git push
 *Disregard the branch in this screenshot*
 
 #### Confirm Workflow Execution
-
+![GitHub Build-and-Deploy Workflow screen](11-confirm-workflow-in-github-1.png)
+![GitHub Build-and-Push Job screen](12-confirm-workflow-in-github-2.png)
+![GitHub Patch-Deployment-Image Job screen](13-confirm-workflow-in-github-3.png)
+![Updated Website displayed in Chrome](14-updated-website-in-browser.png)
 Success!
 
+
+
 ## Done
-Without GitHub Actions done and dusted, perhaps it is time to turn our attention towards improving observability of Kubernetes resources.
+With GitHub Actions done and dusted, perhaps it is time to turn our attention towards improving observability of Kubernetes resources.
