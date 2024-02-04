@@ -10,7 +10,7 @@ env:
 
 jobs:
   Build-and-Push:
-    runs-on: arc-runner-set3
+    runs-on: arc-runner-set
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -40,7 +40,7 @@ jobs:
           docker buildx imagetools inspect registry:5000/$IMAGE_NAME:$IMAGE_TAG
 
   Patch-Deployment-Image:
-    runs-on: arc-runner-set3
+    runs-on: arc-runner-set
     steps:
       - name: Install Kubectl
         env:
