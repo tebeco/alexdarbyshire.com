@@ -3,20 +3,22 @@ title: "Migrating from Docker Compose to Kubernetes (K3s)"
 date: 2024-01-28T11:54:09+10:00
 author: "Alex Darbyshire"
 banner: "img/banners/docker-whale-migration-to-kubernetes.jpeg"
+toc: true
 tags:
   - Docker
   - Kubernetes 
   - Linux
 ---
 
-In this post, we will look at migrating Docker Compose run services to Kubernetes using a lightweight version called K3s. 
+In this post, we will look at migrating Docker Compose run services to K3s, a lightweight version of Kubernetes. 
 
 K3s provides an approachable way to experience Kubernetes. It is quick to spin up and takes care of a lot of boilerplate, which suits a test environment. We can work our way up to full Kubernetes (K8s) in the future.
 
 We will continue using this site as an example and build upon the [previous post]({{< ref "/posts/self-hosted-website-with-hugo-docker-and-cloudflare-tunnels/index.md" >}} "Self-Hosted Website with Hugo, Docker, and Cloudflare Tunnels") which got our [GitHub repo to here.](https://github.com/alexdarbyshire/alexdarbyshire.com/tree/b468af84c2b2473776549cbba7d3238541556ce2)
 
 ## What is Kubernetes and where does it fit with Docker?
-- **Kubernetes, OpenShift, Docker Swarm** Container orchestration tools that automate the deployment, scaling, and management of containerised applications across multiple nodes (machines).
+- **Kubernetes, Docker Swarm** Container orchestration tools that automate the deployment, scaling, and management of containerised applications across multiple nodes (machines).
+- **Rancher, Openshift, Portainer** Container management platforms that provide interfaces for interacting with Container Orchestration Tools.
 - **Docker Compose** A tool for managing multi-container applications on a single node or within a Docker Swarm.
 - **Docker** A tool for building images, interacting with image registries, and running containers.
 
@@ -26,12 +28,12 @@ Google gets a special mention having developed Kubernetes and open-sourced it in
 
 Note, Docker Swarm is included the above for historical reasons, its usage is waning. 
 
-The major cloud service providers offer their own abstracted versions of Kubernetes. I am learning CLI based Kubernetes as I find it is usually helpful to understand what is going on beneath the hood with complex systems.
+The major cloud service providers offer their own abstracted versions of Kubernetes. We are started with operating Kubernetes using the command line as it is usually helpful to understand what is going on beneath the hood with complex systems.
 
 ## Example
 [Checkout the end result in GitHub](https://github.com/alexdarbyshire/alexdarbyshire.com/tree/b64dd9477306d4e4379bc8bc7e5c7652638dc306)
  
-## Tech stack
+## Tech Stack
 - **K3s**
 - **Ubuntu Linux**
 - **Docker**
@@ -50,27 +52,27 @@ The major cloud service providers offer their own abstracted versions of Kuberne
 [K3s Quick Start for reference](https://docs.k3s.io/quick-start)
 #### Install K3s 
 
-```
+```bash
 curl -sfL https://get.k3s.io | sh -
 ```
 ![image](1-install-k3s.png)
 
-#### Confirm K3s Node Creation
-```
+#### Confirm K3s node creation
+```bash
 sudo k3s kubectl get node
 ```
 ![image](2-check-k3s-node-ready.png)
-We can see it is ready by the roles `control-plane` and `master`.
+We can see it is ready by the roles including `control-plane` and `master`.
 
 #### Install Kompose
-```
+```bash
 sudo snap install kompose
 ```
 ![image](3-install-kompose.png)
 
-### Convert, Configure, and Run
+### Convert Docker Compose to Manifests
 #### Convert with Kompose
-```
+```bash
 kompose convert
 ```
 ![image](4-kompose-convert.png)
@@ -82,22 +84,22 @@ Links to the outputted files for reference:
 
 #### Try out and debug Kompose generated manifests
 Ask kubectl to apply the configuration files in the current folder.
-```
+```bash
 sudo k3s kubectl apply -f .
 ```
 ![image](5-apply-kompose-manifests.png)
 
-It threw an error for the docker-compose.yml file because it doesn't know how to parse it. Fair.
+It threw an error for one of the three files being the docker-compose.yml. It doesn't know how to parse it as it is not a Kubernetes manifest. Fair.
 
-Check the status of the resources
-```
+Check the status of the resources.
+```bash
 sudo k3s kubectl get deployment.apps
 ```
 ![image](6-check-resources-created-from-kompose.png)
 
 Ok, neither of our resources are available. Time to hit the logs.
 
-```
+```bash
 sudo k3s kubectl logs deployment.app/hugo-nginx
 sudo k3s kubectl logs deployment.app/cloudflared
 ```
@@ -107,7 +109,7 @@ In the above output we discover:
 1. The hugo-nginx image is not available to K3s. In the last post we built the image and access it via Docker's local image storage which K3s doesn't know how to access.
 2. Cloudflared is missing its token.
 
-```
+```bash
 cat cloudflared-deployment.yaml
 ```
 ![image](8-view-cloudflared-deployment.png)
@@ -115,18 +117,19 @@ cat cloudflared-deployment.yaml
 We need to: 
 - spin up a private registry for images and push our images (or push them to someone else's),
 - pass our token into K3s using secrets, and
-- add a Kubernetes service manifest for nginx-hugo. Kompose did not have sufficient info to tell that cloudflared needed to connect to nginx-hugo.
+- add a Kubernetes service manifest for nginx-hugo. Kompose did not have sufficient info to tell that cloudflared needed to connect to nginx-hugo and as a result there is no service manifest to enable this.
 
-#### Create a Private Registry
-We are creating the registry using K3s. It would be easier in Docker, and Docker may well be the better tool for the task, but that won't help us learn K3s.
+### Create and Populate Private Image Registry 
+We are creating the registry using K3s. This is not the easiest way to create a registry. To spin one up using Docker for a single host would require one command.  
+
 First we will create a subdirectory called deploy for housing our K3s manifests.
-```
+```bash
 mkdir deploy
 cd deploy
 ```
 
 Then, we add a file named `distribution.yaml` with the following contents: 
-```
+```yaml
 apiVersion: v1
 kind: Pod
 metadata:
@@ -166,7 +169,7 @@ spec:
 ```
 
 Add another file called `distribution-pvc.yaml` with contents:
-```
+```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -184,16 +187,16 @@ spec:
 These files define two resources for running a private registry, and a local storage volume. Local storage isn't aligned with the Kubernetes approach, however it will suit our test usage. 
 
 
-Note, this setup does not include authentication so should not be exposed.
+Note, this setup does not include authentication so should not be exposed on untrusted networks.
 
 #### Bring up the registry
-```
+```bash
 sudo k3s kubectl apply -f deployment-pvc.yml
 sudo k3s kubectl apply -f deployment.yaml
 ```
 
 #### Re-tag and then push the images to the registry using Docker
-```
+```bash
 docker image tag homelab/alexdarbyshire-site:3 localhost:5000/alexdarbyshire-site:3
 docker image tag localhost:5000/alexdarbyshire-site:3 localhost:5000/alexdarbyshire-site:3
 
@@ -203,13 +206,13 @@ docker push localhost:5000/alexdarbyshire-site:latest
 
 #### Using secrets to pass our Cloudflare Tunnel token 
 First, encode the token to base64 and make note of it. 
-```
+```bash
 echo "insert_token_here" | base64 -w 0 
 ```
-Base64 is not encryption, it is an encoding type and is not secure, we should treat our base64 token in the same way we treat our plaintext token.
+Base64 is not encryption, it is an encoding type and is not secure. We should treat our base64 token in the same way we treat our plaintext token.
 
 Create a file called `secrets.yaml.example` with the following contents:
-```
+```yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -219,20 +222,20 @@ data:
 ```
 
 Make a copy and add the new file to `.gitignore` to exclude it from the git repo.
-```
+```bash
 cp secrets.yaml.example secrets.yaml
 echo "secrets.yaml" >> .gitignore
 ```
 
 Edit secrets.yaml and add the base64 encoded token into it.
 
-#### Add the Kubernetes manifest for cloudflared-hugo
-The output of the Kompose command needed a fair bit of work. It gives us an idea of its limitations. 
+### Correct the Kubernetes Manifest for the cloudflared-hugo Image
+The output of the Kompose command needed a fair bit of work. This process gives us an idea of its limitations. 
 
 We will not use the files it created, below is a cleaned up combined version with the missing requirements added (service, port mappings, and updated image path).
 
 Create a file called `cloudflared-hugo.yaml` with the following contents:
-```
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -309,27 +312,27 @@ spec:
 The deploy folder should now look like this:
 ![image](10-ls-deploy-folder.png)
 
-#### Apply all the manifests
+### Apply Manifests and Remove Docker Equivalents
 Run the following from the `deploy` directory.
-```
+```bash
 sudo k3s kubectl apply -f .
 ```
 ![image](11-apply-all-manifests.png)
 That should do the trick.
 
 #### Down the superseded docker compose stack
-```
+```bash
 docker compose down
 ```
 
-#### Confirm K3s is working
+#### Confirm K3s resources are working
 Success.
 ![image](12-success.png)
 
 ### Clean up 
 We have some files we no longer need. 
 
-```
+```bash
 cd ~/alexdarbyshire.com
 rm .env .env.example 
 rm docker-compose.yml
@@ -337,15 +340,15 @@ rm nginx-hugo-deployment.yaml cloudflared-deployment.yaml
 ```
 
 #### Make a commit
-You may want to commit your code to the local repo once again.
+Commit our code to the local repo once again.
 
 Check no files including secrets will be committed by checking what will be committed.
-```
+```bash
 git status
 ```
 
 Then add and commit.
-```
+```bash
 git add .
 git commit -m "Migrate from Docker Compose to K3s"
 ```
