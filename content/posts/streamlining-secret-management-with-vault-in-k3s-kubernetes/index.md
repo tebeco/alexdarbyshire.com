@@ -383,19 +383,13 @@ spec:
       initContainers:
       - image: docker.io/alpine/k8s:1.25.6
         name: create-auth-token
-        env:
-          - name: test_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: cloudflared
-                key: token
         command:
             - /bin/sh
             - -c
             - |
               source /vault/secrets/token
               kubectl delete secret cloudflared --ignore-not-found > /dev/null 2>&1
-              kubectl create secret generic cloudflared --from-literal="$TUNNEL_TOKEN"
+              kubectl create secret generic cloudflared --from-literal="token=$TUNNEL_TOKEN"
 
       containers:
       - image: cloudflare/cloudflared:latest
