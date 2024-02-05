@@ -7,6 +7,7 @@ on:
 env:
   IMAGE_TAG: ${{ github.sha }}
   IMAGE_NAME: "alexdarbyshire-site"
+  BASE_URL: "https://www.alexdarbyshire.com"
 
 jobs:
   Build-and-Push:
@@ -33,6 +34,9 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            HUGO_ENV=production
+            HUGO_BASEURL=${{ env.BASE_URL }}
           tags: registry:5000/alexdarbyshire-site:${{ github.sha }},registry:5000/alexdarbyshire-site:latest
 
       - name: Inspect
@@ -41,15 +45,20 @@ jobs:
 
   Patch-Deployment-Image:
     runs-on: arc-runner-set
+    needs: Build-and-Push
     steps:
       - name: Install Kubectl
         env:
           KUBE_VERSION: "v1.29.1"
         run: |
           sudo apt update
-          sudo apt install -yq openssl curl ca-certificates
+          sudo apt install -yq openssl curl ca-certificates jq
           sudo curl -L https://storage.googleapis.com/kubernetes-release/release/$KUBE_VERSION/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl
           sudo chmod +x /usr/local/bin/kubectl
+
+      - name: Check Vault is unsealed
+        run: |
+          [[ $(curl -s http://vault.default.svc.cluster.local:8200/v1/sys/seal-status | jq .sealed) == 'false' ]]
 
       - name: Update kubernetes deployment to image
         run: |
