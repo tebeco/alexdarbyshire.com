@@ -16,3 +16,4 @@ RUN hugo --gc --minify
 ###############
 FROM hugomods/hugo:nginx
 COPY --from=builder /src/public /site
+COPY ./nginx.conf /etc/nginx/conf.d/default.conf
