@@ -264,10 +264,16 @@ jobs:
   Build-and-Push:
     runs-on: arc-runner-set
     steps:
+      - name: Install git in runner
+        run: |
+          sudo apt update
+          sudo apt install -yq git
+          
       - name: Check out repository code
         uses: actions/checkout@v4
         with:
           repository: 'alexdarbyshire/alexdarbyshire.com'
+          submodules: recursive
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
