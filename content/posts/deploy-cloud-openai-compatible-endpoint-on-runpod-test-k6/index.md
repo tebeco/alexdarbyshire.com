@@ -1,5 +1,5 @@
 ---
-title: "Deploying an OpenAI Compatible Endpoint on Runpod with vLLM and Load Testing K6"
+title: "Deploying an OpenAI Compatible Endpoint on Runpod with vLLM and K6 Load Testing"
 date: 2024-03-03T15:45:23+10:00
 author: "Alex Darbyshire"
 banner: "img/banners/load-testing-a-cloud.jpeg"
@@ -11,7 +11,7 @@ tags:
   - Cloud
 ---
 
-This post explores renting a cloud GPU from RunPod and using the vLLM inference engine to run a Large Language Model with an OpenAI compatible endpoint, and then load testing that endpoint with K6.
+This post explores renting a cloud GPU from RunPod and using the vLLM inference engine to run a Large Language Model made available via an OpenAI compatible endpoint, and then load testing that endpoint with K6.
 
 ## What is RunPod?
 [RunPod](https://www.runpod.io) is a paid cloud GPU provider. It offers:
@@ -20,7 +20,7 @@ This post explores renting a cloud GPU from RunPod and using the vLLM inference 
 
 We will utilise a pod in this example.
 
-A pod is a docker container with one or more GPUs attached. We specify the docker image and the configuration. The pod will run until we terminate it.
+A pod is a container with one or more GPUs attached. We specify the docker image and the configuration. The pod will run until we terminate it.
 
 Pods provide easy TCP and HTTPS port forwarding to RunPod's generated hostnames via its proxy.
 
@@ -48,7 +48,7 @@ For clarity, I am not affiliated with RunPod or Together.ai and there is no mone
 It is designed to achieve high throughput across concurrent requests.
 
 ## What is K6?
-[K6](https://k6.io/) is an open-source load testing tool written in Go and tests in ES6 style Javascript. It is developed by the company that created Grafana.
+[K6](https://k6.io/) is an open-source load testing tool written in Go and interprets tests written in ES6-style Javascript. It hails from the same company that produces Grafana.
 
 It allows us to make concurrent requests to our endpoint and measure performance.
 
@@ -56,7 +56,7 @@ It allows us to make concurrent requests to our endpoint and measure performance
 
 This allows us to drop in our endpoint URL and API key into any software which has configurable OpenAI endpoint support. This opens us up to a wide range of pre-existing packages and programs.
 
-Examples of software include Continue.dev for IntelliJ and VSCode integration and Shell-GPT for Bash integration. We can also write our own software which can be swapped between the other providers by updating one line or two lines of configuration.
+Examples of software include `Continue.dev` for IntelliJ and VSCode integration, and `Shell-GPT` for Bash integration. We can also write our own software which can be swapped between the other providers by updating one line or two lines of configuration.
 
 ## Bring Your Own
 
@@ -67,26 +67,26 @@ Examples of software include Continue.dev for IntelliJ and VSCode integration an
 
 ## Techstack
 
-- **Ubuntu** 22.04
+- **Ubuntu Linux** 22.04
 - **vLLM** v0.3.2
 - **K6** 0.49.0
 - **Large Language Model** [codefuse-ai/CodeFuse-Deepseek-33B](https://huggingface.co/codefuse-ai/CodeFuse-DeepSeek-33B)
 
 ## Steps
-### Setup a RunPod Template
+### Set Up RunPod Template
 The example case will use a A100 80GB PCIe GPU running a 33 billion parameter model.
 
 Login to Runpod. Click `Templates`. Click `+ New Template`.
 
 Configure the template:
 ![Configure Runpod Template Screenshot](1-configure-runpod-template.png)
-**Container image** `vllm/vllm-openai:v0.3.2` - at time of writing latest (v0.3.3) had some unexpected behaviour.
+**Container image** `vllm/vllm-openai:v0.3.2` - at time of writing latest (v0.3.3) wasn't showing the model download progress.
 
-**Container Disk** `10`GB in excess of requirements, 1GB likely sufficient
+**Container Disk** `10`GB is more than enough, 1GB likely sufficient.
 
 **Volume Disk** `70`GB for the downloaded model, it may be adjusted based on the model being used.
 
-**Expose HTTP Ports** `8000,` the port we will access our endpoint on.
+**Expose HTTP Ports** `8000,` the port we will access our endpoint on. 
 
 **Container Start Command** `--host 0.0.0.0 --model codefuse-ai/CodeFuse-DeepSeek-33B --max-model-len 16384`
 - `--host 0.0.0.0` allows requests from all IPs
@@ -98,7 +98,7 @@ Configure the template:
 **Environment Variables**
 - `VLLM_API_KEY` API Key required to access the endpoint.
 
-### Setup SSH Keys (optional)
+### Add SSH Key to Global RunPod Settings (optional)
 Should we want to SSH into the container from a terminal, before instantiating our pod we add a public SSH key to `Account` `Settings` `SSH Public Keys`.
 ![Setup SSH Keys on RunPod](2-setup-ssh-keys-on-runpod.png)
 
@@ -117,10 +117,10 @@ Success.
 ![Your Pod is Being Built Screenshot](6-your-pod-is-being-built-on-runpod.png)
 
 ### Wait for Pod Creation
-After the Pod gets built with runpod ecosystem, we can select it and click `Logs`.
+After the Pod gets built within RunPod's ecosystem, we can select it and click `Logs`.
 ![Click Logs on RunPod](7-click-logs-on-runpod.png)
 
-Under `System Logs` we see the vLLM docker image being pulled and then container is created.  
+Under `System Logs` we see the vLLM docker image being pulled and then the container is created.  
 ![View System Logs on RunPod](8-view-system-logs-on-runpod.png)
 
 Under `Container Logs` we will see the model being downloaded.
@@ -165,7 +165,7 @@ https://www.kaggle.com/datasets/moulhanout/stack-overflow-2018-questions-data-se
 
 It was downloaded as a zip file and extracted resulting in a `QueryResults2018.csv`.
 
-### Create a K6 Tests File
+### Create a K6 Test File in Javascript
 
 Create `api-test.js` containing:
 ```javascript
@@ -178,12 +178,11 @@ import { Counter, Trend } from 'k6/metrics';
 import papaparse from 'https://jslib.k6.io/papaparse/5.1.1/index.js';
 
 // set params
-const url = "https://it2eo6vlfpaao3-8000.proxy.runpod.net/v1/chat/completions";
+const url = "https://cg799ewt7047eh-8000.proxy.runpod.net/v1/chat/completions";
 const modelName = 'codefuse-ai/CodeFuse-DeepSeek-33B';
 const apiKey = 'asecretkeywithmanycharacters';
 
 // define custom metrics
-const waitTimeTrend = new Trend('waiting_time_trend');
 const tokensTrend = new Trend('total_tokens_trend');
 const promptTokensTrend = new Trend('prompt_tokens_trend');
 const completionTokensTrend = new Trend('completion_tokens_trend');
@@ -260,7 +259,6 @@ export default function () {
     const data = res.json();
 
     // add custom metrics for response
-    waitTimeTrend.add(res.timings.waiting);
     tokensTrend.add(data.usage.total_tokens);
     promptTokensTrend.add(data.usage.prompt_tokens);
     completionTokensTrend.add(data.usage.completion_tokens);
@@ -277,11 +275,11 @@ export default function () {
 ```
 Note the API Key and endpoint must match the instantiated Pod.
 
-See the [K6 documentation](https://k6.io/docs/) for details.
+See the [K6 documentation](https://k6.io/docs/) for details on how to further configure tests.
 
-### Run the K6 Tests
+### Run the K6 Test File
 
-This command runs the k6 test and datetime stamps the resulting output files.
+This command runs the K6 test and datetime stamps the resulting output files.
 ```bash
 timestamp=$(date +%Y-%m-%d_%H-%M-%S) && k6 run api-test.js --out json="$timestamp"-results.json --console-output="$timestamp"-consoleoutput.txt
 ```
@@ -289,16 +287,25 @@ timestamp=$(date +%Y-%m-%d_%H-%M-%S) && k6 run api-test.js --out json="$timestam
 
 Amongst these results we see an average 651 tokens per second across the responses.
 
-The wait time at 70 concurrent virtual users is higher than we would like in production. This helps inform us of further design decisions, e.g. use a better GPU, or limit concurrent requests, or use more than one GPU and implement a load balancer.
+The average wait time `http_req_waiting` of 53.73s at 70 concurrent virtual users seems high at first glance. 
+
+Consider that we have not enabled the [streaming of responses](https://cookbook.openai.com/examples/how_to_stream_completions). The API is waiting until the entire response is done before sending it back. 
+
+Dividing average `completion_tokens` by `http_req_waiting` gives us an indicative average of 5.9 tokens per second which using the rule of thumb 0.75 words per token is 264 words per minute. This is slightly above the [average silent reading rate for adults](https://www.sciencedirect.com/science/article/abs/pii/S0749596X19300786). 
+
+This and further testing helps inform design decisions. E.g. at what point will we need to use a better GPU or limit concurrent requests, or use more than one GPU and implement a load balancer.
 
 We will leave tweaking the testing for the intrepid.
+
+### Cleanup
+Stop and then destroy the pod within the RunPod interface. 
 
 ### Potential Improvements
 RunPod has a GraphQL API available.
 
-If we were wanting to test multiple models across multi GPUs, or run tests on a regular basis, we could instantiate the pods using a script which interacts with the API and then run the tests automatically.
+If we were wanting to test multiple models across multiple GPU types, or run tests on a regular basis, we could instantiate the pods using a script which interacts with the API and then run the tests in a pipeline.
 
-We could also send the output to a time-series database for better visualisation.
+We could also send the output to a time-series database to record our results and utilise a data visualisation tool enabling improved interpretation.
 
 ## Success
-With that all done, we can consider use cases for endpoints with an understanding of costs and how they perform under load.
+With that all done, we can consider use cases for endpoints with an understanding of how they perform under load and how costs may scale with number of users.
