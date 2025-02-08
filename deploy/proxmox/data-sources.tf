@@ -1,6 +1,6 @@
 #Load local SSH key for injecting into VMs
 data "local_file" "ssh_public_key" {
-  filename = pathexpand("~/.ssh/id_ed25519.pub")
+  filename = pathexpand(var.virtual_environment.vm_ssh_public_keyfile)
 }
 
 

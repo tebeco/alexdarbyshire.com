@@ -1,0 +1,46 @@
+#cloud-config
+users:
+  - name: ${username}
+    passwd: ${password}
+    lock_passwd: false
+    groups: [ adm, cdrom, dip, plugdev, lxd, sudo ]
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${pub-key}
+    #sudo: ALL=(ALL) NOPASSWD:ALL
+
+package_update: true
+package_upgrade: true
+timezone: Indian/Mauritius
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/01-harden-ssh.conf
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      ChallengeResponseAuthentication no
+      UsePAM no
+
+packages:
+  - qemu-guest-agent
+  - net-tools
+  - vim
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gpg
+  - open-iscsi
+  - jq
+
+power_state:
+    delay: now
+    mode: reboot
+    message: Rebooting after cloud-init completion
+    condition: true
+
+runcmd:
+    - systemctl enable qemu-guest-agent
+    - localectl set-locale LANG=en_US.UTF-8
+    - apt update
+    - systemctl start qemu-guest-agent
+    - echo "done" > /tmp/cloud-config.done

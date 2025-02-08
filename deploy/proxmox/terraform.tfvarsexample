@@ -1,9 +1,12 @@
 virtual_environment = {
-  endpoint = "https://ip-or-hostname:8006/"
-  username = "root@pam"
-  password = "apasswordgoeshere"
-  node_name = "proxmox-node-name-goes-here"
+  endpoint = "https://yourproxmoxurl:8006/"
+  username = "root"
+  api_token = "YOURUSER@pam!TOKEN_NAME=TOKENVALUE"
+  node_name = "node_name"
   storage_nas = "local"
   storage_ssd = "local-lvm"
   vm_count = 4
+  vm_user = "ubuntu"
+  vm_password  = "$6$avvVLS5Kk.qOU1ir$TYE859V33NPwEF9dQVOPtNk2g7erbIuzjHAnWrIuwcqMPmm7zXAEO7VtXTU1aI2DpWQTlwURS/jnVk0PvsgAK/"
+  vm_ssh_public_keyfile = "~/.ssh/id_ed25519.pub"
 }

@@ -43,7 +43,6 @@ resource "proxmox_virtual_environment_vm" "ubuntu_vm" {
 
 }
 
-
 #Specify the image to use
 resource "proxmox_virtual_environment_download_file" "ubuntu_cloud_image" {
   content_type = "iso"
